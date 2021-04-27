@@ -1,0 +1,12 @@
+includePaths:
+  - scss/*
+
+excludedPaths:
+  - .git/*
+
+command:
+  - type: read
+    # support  ${filename}, ${filenameWithoutExt}, ${basename}, ${fileDir}
+    cmd: sass ${filenameWithoutExt}.scss -o ../css/${filenameWithoutExt}.css
+    envs:
+      - NO=sss

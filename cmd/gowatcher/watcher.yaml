@@ -1,0 +1,12 @@
+includePaths:
+  - /Users/tianqi/iwork/shortvideo/src/tagserver/src/main/resources/assets/scss/*
+
+excludedPaths:
+  - .git/*
+
+command:
+  - type: all
+    # support  ${filename}, ${filenameWithoutExt}, ${basename}, ${fileDir}
+    cmd: sass ${filenameWithoutExt}.scss /tmp/${basenameWithoutExt}.css
+    envs:
+      - NO=sss
