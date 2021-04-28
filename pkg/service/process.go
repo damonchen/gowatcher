@@ -8,6 +8,7 @@ import (
 
 func process(cmd string, args []string, envs []string, pid int) (int, context.CancelFunc, error) {
 	if pid != 0 {
+		log.Debugf("process pid %d", pid)
 		err := kill(pid)
 		if err != nil {
 			return 0, nil, err
@@ -21,6 +22,7 @@ func kill(pid int) error {
 	ps, err := os.FindProcess(pid)
 
 	if err != nil {
+		log.Errorf("find process error %s", err)
 		return err
 	}
 
@@ -38,11 +40,12 @@ func startProcess(execPath string, args []string, envs []string) (int, context.C
 	cmd := exec.CommandContext(ctx, execPath)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Args = append([]string{execPath}, args...)
+	cmd.Args = args
 	cmd.Env = append(os.Environ(), envs...)
 
 	err := cmd.Start()
 	if err != nil {
+		log.Errorf("start command %s %+v error", execPath, args)
 		return 0, cancel, err
 	}
 	go func() {

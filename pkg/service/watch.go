@@ -2,12 +2,13 @@ package service
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/damonchen/filepathx"
 	"github.com/damonchen/gowatcher/pkg/config"
 	"github.com/fsnotify/fsnotify"
+	"github.com/mattn/go-shellwords"
 )
 
 type ProcessInfo struct {
@@ -48,27 +49,40 @@ func (w *Watcher) isWatchFile(filename string) bool {
 	return false
 }
 
+func (w *Watcher) addWatchFile(path string) error {
+	// if path, should list all files then add
+	files, err := filepathx.Glob(path)
+	if err != nil {
+		log.Errorf("glob file error %s", err)
+		return err
+	}
+
+	for _, file := range files {
+		log.Infof("add watch file %s", file)
+		err := w.watcher.Add(file)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (w *Watcher) watch() error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
 	}
-
+	w.watcher = watcher
 	go w.watchEvent(watcher)
 
 	for _, includePath := range w.cfg.IncludePaths {
-		log.Infof("start watch %+v\n", includePath)
-		// if path, should list all files then add
-		files, err := filepath.Glob(includePath)
+		log.Infof("start watch %+v", includePath)
+		err := w.addWatchFile(includePath)
 		if err != nil {
 			return err
 		}
-
-		for _, file := range files {
-			watcher.Add(file)
-		}
 	}
-	w.watcher = watcher
+
 	return nil
 }
 
@@ -98,7 +112,7 @@ func (w *Watcher) watchEvent(watcher *fsnotify.Watcher) {
 
 			err := w.runCmd(e.Name)
 			if err != nil {
-				log.Errorf("run command error %s, env: %+v\n", err, os.Environ())
+				log.Errorf("run command error %s", err)
 			}
 		case err, ok := <-watcher.Errors:
 			if !ok {
@@ -133,9 +147,16 @@ func (w *Watcher) runCmd(name string) error {
 		}
 		execPath := prepareCmd(cmd.Cmd, name)
 
-		log.Infof("will restart cmd %s", execPath)
+		args, err := shellwords.Parse(execPath)
+		if err != nil {
+			return err
+		}
 
-		pid, cancel, err := process(execPath, cmd.Args, cmd.Envs, pid)
+		execFile := args[0]
+		args = append(args[1:], cmd.Args...)
+		log.Infof("will restart %+v cmd %s with args %+v", pid, execFile, args)
+
+		pid, cancel, err := process(execFile, args, cmd.Envs, pid)
 		if err != nil {
 			return err
 		}
